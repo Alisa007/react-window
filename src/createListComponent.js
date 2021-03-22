@@ -212,21 +212,45 @@ export default function createListComponent({
       }, this._resetIsScrollingDebounced);
     }
 
-    scrollToItem(index: number, align: ScrollToAlign = 'auto'): void {
+    scrollToItem(index: number, align: ScrollToAlign = 'auto', behavior): void {
       const { itemCount } = this.props;
       const { scrollOffset } = this.state;
 
       index = Math.max(0, Math.min(index, itemCount - 1));
 
-      this.scrollTo(
-        getOffsetForIndexAndAlignment(
-          this.props,
-          index,
-          align,
-          scrollOffset,
-          this._instanceProps
-        )
-      );
+      const scrollTo = getOffsetForIndexAndAlignment(this.props, index, align, scrollOffset, this._instanceProps) + this.props.offset;
+
+      if (behavior !== 'smooth') {
+        this.scrollTo(scrollTo);
+        return;
+      }
+
+      const duration = 300;
+      const tfs = {
+        easeIn: (t) => Math.pow(t, 1.675),
+      };
+
+      let startTime;
+      const startX = this.state.scrollOffset;
+
+      const handleNewAnimationFrame = () => {
+        startTime = startTime || Date.now();
+        const timePos = Math.min(1, Math.max(1, Date.now() - startTime) / duration);
+        const scrollPos = tfs.easeIn(timePos);
+        const left = startX + (scrollTo - startX) * scrollPos;
+
+        if (direction === 'horizontal' || layout === 'horizontal') {
+          this.scrollTo(left, 0);
+        } else {
+          this.scrollTo(0, left);
+        }
+
+        if (timePos !== 1) {
+          window.requestAnimationFrame(handleNewAnimationFrame);
+        }
+      };
+
+      window.requestAnimationFrame(handleNewAnimationFrame);
     }
 
     componentDidMount() {
